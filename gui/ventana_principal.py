@@ -207,6 +207,16 @@ class VentanaPrincipal(QWidget):
             }
         """)
 
+        # Nombre de la mascota como titulo del menu
+        nombre_action = QAction(f"  {self.mascota.nombre}", self)
+        nombre_action.setEnabled(False)
+        font = nombre_action.font()
+        font.setBold(True)
+        font.setPointSize(11)
+        nombre_action.setFont(font)
+        menu.addAction(nombre_action)
+        menu.addSeparator()
+
         accion_comer = QAction("Alimentar", self)
         accion_comer.triggered.connect(lambda: self._ejecutar_accion("comer"))
         menu.addAction(accion_comer)

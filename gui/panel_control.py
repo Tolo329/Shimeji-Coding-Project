@@ -132,6 +132,7 @@ class PanelControl(QFrame):
         self.setFixedSize(self.sizeHint())
 
     def actualizar(self, mascota):
+        self.titulo.setText(mascota.nombre)
         self.barras["hambre"].setValue(100 - mascota.hambre)
         self.barras["felicidad"].setValue(mascota.felicidad)
         self.barras["energia"].setValue(mascota.energia)
