@@ -1,34 +1,33 @@
 import sys
+from PySide6.QtWidgets import QApplication, QInputDialog
 from database.conexion import init_db
 from database.repositorio import BaseDatos
 from dominio.mascota import Mascota
+from gui.ventana_principal import VentanaPrincipal
 
 
 def main():
     init_db()
     repo = BaseDatos()
+    app = QApplication(sys.argv)
 
     mascotas = repo.obtener_todas_mascotas()
     if mascotas:
         modelo = mascotas[0]
         mascota = Mascota.from_model(modelo)
-        print(f"Mascota cargada: {mascota.nombre}")
+        mascota_id = modelo.id
     else:
-        nombre = input("Nombre de tu mascota: ")
-        mascota_id = repo.guardar_mascota(nombre)
+        nombre, ok = QInputDialog.getText(None, "Nueva Mascota", "Nombre de tu mascota:")
+        if not ok or not nombre.strip():
+            nombre = "Mascota"
+        mascota_id = repo.guardar_mascota(nombre.strip())
         modelo = repo.obtener_mascota(mascota_id)
         mascota = Mascota.from_model(modelo)
-        print(f"Mascota creada: {mascota.nombre}")
 
-    print(f"Hambre: {mascota.hambre}")
-    print(f"Felicidad: {mascota.felicidad}")
-    print(f"Energía: {mascota.energia}")
-    print(f"Higiene: {mascota.higiene}")
-    print(f"Estado: {mascota.sprite_estado}")
+    window = VentanaPrincipal(mascota, repo, mascota_id)
+    window.show()
 
-    repo.actualizar_mascota(modelo.id, hambre=mascota.hambre, felicidad=mascota.felicidad,
-                            energia=mascota.energia, higiene=mascota.higiene)
-    print("Progreso guardado.")
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
