@@ -34,7 +34,7 @@ class Mascota:
             self.hambre = self._limitar(self.hambre + 10)
             self.higiene = self._limitar(self.higiene - 5)
             return Actividad("jugar", "La mascota ha jugado")
-        return Actividad("jugar", "La mascota esta muy cansada para jugar")
+        return Actividad("jugar", "La mascota está muy cansada para jugar")
 
     def dormir(self):
         """Recupera energia pero aumenta un poco el hambre"""
@@ -47,7 +47,7 @@ class Mascota:
         self.higiene = self._limitar(self.higiene + 30)
         self.felicidad = self._limitar(self.felicidad + 5)
         self.energia = self._limitar(self.energia - 10)
-        return Actividad("banar", "La mascota se ha banado")
+        return Actividad("banar", "La mascota se ha bañado")
 
     def decrementar_atributos(self):
         """Baja los atributos con el paso del tiempo"""

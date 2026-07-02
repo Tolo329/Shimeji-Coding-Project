@@ -50,7 +50,7 @@ class PanelControl(QFrame):
         nombres = {
             "hambre": "Hambre",
             "felicidad": "Felicidad",
-            "energia": "Energia",
+            "energia": "Energía",
             "higiene": "Higiene",
         }
 
@@ -100,7 +100,7 @@ class PanelControl(QFrame):
                 ("comer", "Comer"),
                 ("jugar", "Jugar"),
                 ("dormir", "Dormir"),
-                ("banar", "Banar"),
+                ("banar", "Bañar"),
             ]
             for idx, (clave, texto) in enumerate(acciones):
                 boton = QPushButton(texto)

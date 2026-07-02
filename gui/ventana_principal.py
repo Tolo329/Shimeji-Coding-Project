@@ -229,7 +229,7 @@ class VentanaPrincipal(QWidget):
         accion_dormir.triggered.connect(lambda: self._ejecutar_accion("dormir"))
         menu.addAction(accion_dormir)
 
-        accion_banar = QAction("Banar", self)
+        accion_banar = QAction("Bañar", self)
         accion_banar.triggered.connect(lambda: self._ejecutar_accion("banar"))
         menu.addAction(accion_banar)
 
@@ -326,5 +326,5 @@ class VentanaPrincipal(QWidget):
 
     def closeEvent(self, event):
         self._guardar_estado()
-        self.repo.registrar_actividad(self.mascota_id, "cierre", "Sesion finalizada")
+        self.repo.registrar_actividad(self.mascota_id, "cierre", "Sesión finalizada")
         super().closeEvent(event)
