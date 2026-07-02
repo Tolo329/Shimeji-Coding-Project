@@ -2,8 +2,7 @@ from dominio.actividad import Actividad
 
 
 class Mascota:
-    MIN_ATRIBUTO = 0
-    MAX_ATRIBUTO = 100
+    """Representa la mascota virtual con sus atributos y acciones"""
 
     def __init__(self, nombre, hambre=50, felicidad=50, energia=50, higiene=50):
         self.nombre = nombre
@@ -12,44 +11,53 @@ class Mascota:
         self.energia = self._limitar(energia)
         self.higiene = self._limitar(higiene)
 
-    @staticmethod
-    def _limitar(valor):
-        return max(Mascota.MIN_ATRIBUTO, min(Mascota.MAX_ATRIBUTO, valor))
+    def _limitar(self, valor):
+        """Mantiene el valor entre 0 y 100"""
+        if valor < 0:
+            return 0
+        if valor > 100:
+            return 100
+        return valor
 
     def comer(self):
+        """Aumenta hambre (menos hambre), felicidad y energia"""
         self.hambre = self._limitar(self.hambre + 25)
         self.felicidad = self._limitar(self.felicidad + 5)
         self.energia = self._limitar(self.energia + 5)
         return Actividad("comer", "La mascota ha comido")
 
     def jugar(self):
+        """Aumenta felicidad pero gasta energia y ensucia"""
         if self.energia >= 10:
             self.felicidad = self._limitar(self.felicidad + 20)
             self.energia = self._limitar(self.energia - 15)
             self.hambre = self._limitar(self.hambre + 10)
             self.higiene = self._limitar(self.higiene - 5)
             return Actividad("jugar", "La mascota ha jugado")
-        return Actividad("jugar", "La mascota está muy cansada para jugar")
+        return Actividad("jugar", "La mascota esta muy cansada para jugar")
 
     def dormir(self):
+        """Recupera energia pero aumenta un poco el hambre"""
         self.energia = self._limitar(self.energia + 30)
         self.hambre = self._limitar(self.hambre + 5)
         return Actividad("dormir", "La mascota ha descansado")
 
     def banar(self):
+        """Limpia la mascota pero gasta un poco de energia"""
         self.higiene = self._limitar(self.higiene + 30)
         self.felicidad = self._limitar(self.felicidad + 5)
         self.energia = self._limitar(self.energia - 10)
-        return Actividad("banar", "La mascota se ha bañado")
+        return Actividad("banar", "La mascota se ha banado")
 
     def decrementar_atributos(self):
+        """Baja los atributos con el paso del tiempo"""
         self.hambre = self._limitar(self.hambre + 2)
         self.felicidad = self._limitar(self.felicidad - 1)
         self.energia = self._limitar(self.energia - 1)
         self.higiene = self._limitar(self.higiene - 1)
 
-    @property
-    def estado_general(self):
+    def obtener_estado_general(self):
+        """Devuelve el estado general segun el promedio de atributos"""
         promedio = (self.hambre + self.felicidad + self.energia + self.higiene) / 4
         if promedio >= 80:
             return "muy_feliz"
@@ -61,32 +69,25 @@ class Mascota:
             return "triste"
         return "enfermo"
 
-    @property
-    def sprite_estado(self):
+    def obtener_sprite(self):
+        """Devuelve el nombre del sprite segun el estado de la mascota"""
         if self.hambre <= 20:
             return "hambriento"
         if self.felicidad <= 20:
             return "triste"
         if self.higiene <= 20:
             return "insatisfecho"
-        if self.estado_general == "muy_feliz":
+        estado = self.obtener_estado_general()
+        if estado == "muy_feliz":
             return "muy_feliz"
-        if self.estado_general == "feliz":
+        if estado == "feliz":
             return "feliz"
         return "neutral"
 
-    def to_dict(self):
-        return {
-            "nombre": self.nombre,
-            "hambre": self.hambre,
-            "felicidad": self.felicidad,
-            "energia": self.energia,
-            "higiene": self.higiene,
-        }
-
-    @classmethod
-    def from_model(cls, modelo):
-        return cls(
+    @staticmethod
+    def copiar_desde_modelo(modelo):
+        """Crea una mascota a partir de un modelo de base de datos"""
+        return Mascota(
             nombre=modelo.nombre,
             hambre=modelo.hambre,
             felicidad=modelo.felicidad,
