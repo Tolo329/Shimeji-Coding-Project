@@ -7,6 +7,7 @@ from PySide6.QtGui import QMouseEvent, QKeyEvent, QAction
 from dominio.mascota import Mascota
 from gui.widget_mascota import WidgetMascota
 from gui.panel_control import PanelControl
+from gui.gestor_sonidos import GestorSonidos
 
 
 class VentanaPrincipal(QWidget):
@@ -17,21 +18,19 @@ class VentanaPrincipal(QWidget):
         self.repo = repositorio
         self.mascota_id = mascota_id
 
-        # Variables para mover la ventana arrastrando
         self._arrastrando = False
         self._offset_arrastre = QPoint(0, 0)
 
-        # Variables de movimiento de la mascota
-        self._modo = "idle"          # idle o siguiendo
-        self._direccion = 1          # 1 = derecha, -1 = izquierda
-        self._pausa_restante = 0     # milisegundos de pausa antes de caminar
+        self._modo = "idle"
+        self._direccion = 1
+        self._pausa_restante = 0
+        self._caminando = False    # True cuando se esta moviendo
 
         self._configurar_ventana()
         self._crear_widgets()
         self._iniciar_timers()
 
     def _configurar_ventana(self):
-        """Ventana sin bordes, transparente, siempre encima"""
         self.setWindowFlags(
             Qt.FramelessWindowHint |
             Qt.WindowStaysOnTopHint |
@@ -42,7 +41,6 @@ class VentanaPrincipal(QWidget):
         self.setAttribute(Qt.WA_ShowWithoutActivating)
         self.setFixedSize(WidgetMascota.SIZE, WidgetMascota.SIZE)
 
-        # Aparecer en una posicion aleatoria de la pantalla
         pantalla = QApplication.primaryScreen().availableGeometry()
         x = random.randint(50, pantalla.width() - WidgetMascota.SIZE - 50)
         y = pantalla.height() - WidgetMascota.SIZE - 80
@@ -56,22 +54,39 @@ class VentanaPrincipal(QWidget):
     def _iniciar_timers(self):
         self.timer_decaimiento = QTimer(self)
         self.timer_decaimiento.timeout.connect(self._decaer)
-        self.timer_decaimiento.start(4000)  # cada 4 segundos baja atributos
+        self.timer_decaimiento.start(4000)
 
         self.timer_movimiento = QTimer(self)
         self.timer_movimiento.timeout.connect(self._caminar)
-        self.timer_movimiento.start(30)      # ~30 fps para movimiento suave
+        self.timer_movimiento.start(30)
 
         self.timer_seguir = QTimer(self)
         self.timer_seguir.timeout.connect(self._revisar_raton)
         self.timer_seguir.start(200)
 
+    # ========== AUTO-COMPORTAMIENTO ==========
+
     def _decaer(self):
-        """Baja los atributos de la mascota con el tiempo"""
+        """Baja los atributos y luego revisa si la mascota necesita algo"""
         self.mascota.decrementar_atributos()
         self._actualizar_sprite()
         if self.panel_control.isVisible():
             self.panel_control.actualizar(self.mascota)
+        self._revisar_necesidades()
+
+    def _revisar_necesidades(self):
+        """Auto-comportamiento: la mascota actua sola si algun atributo esta critico"""
+        # Prioridad: hambre > higiene > energia > felicidad
+        if self.mascota.hambre <= 20:
+            self._ejecutar_accion("comer", auto=True)
+        elif self.mascota.higiene <= 20:
+            self._ejecutar_accion("banar", auto=True)
+        elif self.mascota.energia <= 15:
+            self._ejecutar_accion("dormir", auto=True)
+        elif self.mascota.felicidad <= 20 and self.mascota.energia >= 20:
+            self._ejecutar_accion("jugar", auto=True)
+
+    # ========== MOVIMIENTO ==========
 
     def _actualizar_sprite(self):
         sprite = self.mascota.obtener_sprite()
@@ -80,44 +95,46 @@ class VentanaPrincipal(QWidget):
     def _caminar(self):
         """La mascota camina sola cuando esta en modo idle"""
         if self._modo != "idle":
+            self._caminando = False
+            self.mascota_widget.establecer_caminando(False)
             return
 
         pantalla = QApplication.primaryScreen().availableGeometry()
 
-        # Si esta en pausa, esperar
         if self._pausa_restante > 0:
             self._pausa_restante -= self.timer_movimiento.interval()
+            if self._caminando:
+                self._caminando = False
+                self.mascota_widget.establecer_caminando(False)
             return
 
-        # A veces cambiar de direccion aleatoriamente
-        if random.random() < 0.005:  # ~0.5% por frame
+        if random.random() < 0.005:
             self._direccion = random.choice([-1, 1])
             self._pausa_restante = random.randint(1000, 4000)
 
         x = self.x()
         nuevo_x = x + 1.5 * self._direccion
 
-        # Si llega al borde de la pantalla, dar la vuelta
         if nuevo_x < 0 or nuevo_x > pantalla.width() - WidgetMascota.SIZE:
             self._direccion *= -1
             self._pausa_restante = random.randint(500, 2000)
             nuevo_x = x + 1.5 * self._direccion
 
+        self._caminando = True
+        self.mascota_widget.establecer_caminando(True)
         self.mascota_widget.establecer_mirando(self._direccion < 0)
         self.move(int(nuevo_x), self.y())
 
     def _revisar_raton(self):
-        """Si el raton esta cerca, la mascota lo sigue"""
         if self._arrastrando:
             return
-
         cursor = self.cursor().pos()
         centro = self.geometry().center()
         dx = cursor.x() - centro.x()
         dy = cursor.y() - centro.y()
         distancia = math.sqrt(dx * dx + dy * dy)
 
-        if distancia < 200:  # radio de seguimiento
+        if distancia < 200:
             self._modo = "siguiendo"
             self._seguir_raton(cursor, dx, dy, distancia)
         else:
@@ -125,7 +142,6 @@ class VentanaPrincipal(QWidget):
                 self._modo = "idle"
 
     def _seguir_raton(self, cursor, dx, dy, distancia):
-        """Mueve la mascota hacia el cursor"""
         pantalla = QApplication.primaryScreen().availableGeometry()
         x = self.x()
         y = self.y()
@@ -137,13 +153,12 @@ class VentanaPrincipal(QWidget):
             mover_y = (dy / distancia) * velocidad
             nuevo_x = int(x + mover_x)
             nuevo_y = int(y + mover_y)
-            # No salirse de la pantalla
             nuevo_x = max(0, min(nuevo_x, pantalla.width() - WidgetMascota.SIZE))
             nuevo_y = max(0, min(nuevo_y, pantalla.height() - WidgetMascota.SIZE - 40))
             self.move(nuevo_x, nuevo_y)
             self.mascota_widget.establecer_mirando(dx < 0)
 
-    # --- Eventos del raton ---
+    # ========== EVENTOS DEL RATON ==========
 
     def mousePressEvent(self, event: QMouseEvent):
         if event.button() == Qt.LeftButton:
@@ -165,63 +180,69 @@ class VentanaPrincipal(QWidget):
         if event.button() == Qt.LeftButton:
             self._abrir_o_cerrar_panel()
 
-    # --- Menu contextual (clic derecho) ---
+    # ========== MENU CONTEXTUAL ==========
 
     def _mostrar_menu(self, event):
         menu = QMenu(self)
         menu.setStyleSheet("""
             QMenu {
-                background: rgba(255,255,255,240);
-                border: 1px solid #ccc;
+                background: #ffffff;
+                border: 1px solid #888;
                 border-radius: 10px;
                 padding: 6px;
             }
             QMenu::item {
                 padding: 8px 24px;
                 border-radius: 6px;
-                font-size: 12px;
+                font-size: 13px;
+                color: #222;
             }
             QMenu::item:selected {
-                background: rgba(0,0,0,0.08);
+                background: #d0eaff;
+            }
+            QMenu::separator {
+                height: 1px;
+                background: #ccc;
+                margin: 4px 8px;
             }
         """)
 
-        # Opciones del menu
-        accion_comer = QAction("🍽  Alimentar", self)
+        accion_comer = QAction("Alimentar", self)
         accion_comer.triggered.connect(lambda: self._ejecutar_accion("comer"))
         menu.addAction(accion_comer)
 
-        accion_jugar = QAction("🎾  Jugar", self)
+        accion_jugar = QAction("Jugar", self)
         accion_jugar.triggered.connect(lambda: self._ejecutar_accion("jugar"))
         menu.addAction(accion_jugar)
 
-        accion_dormir = QAction("💤  Dormir", self)
+        accion_dormir = QAction("Dormir", self)
         accion_dormir.triggered.connect(lambda: self._ejecutar_accion("dormir"))
         menu.addAction(accion_dormir)
 
-        accion_banar = QAction("🚿  Bañar", self)
+        accion_banar = QAction("Banar", self)
         accion_banar.triggered.connect(lambda: self._ejecutar_accion("banar"))
         menu.addAction(accion_banar)
 
         menu.addSeparator()
 
-        accion_estado = QAction("📊  Estadísticas", self)
+        accion_estado = QAction("Estadisticas", self)
         accion_estado.triggered.connect(self._abrir_o_cerrar_panel)
         menu.addAction(accion_estado)
 
-        accion_reiniciar = QAction("🔄  Nueva Mascota", self)
+        accion_reiniciar = QAction("Nueva Mascota", self)
         accion_reiniciar.triggered.connect(self._reiniciar_mascota)
         menu.addAction(accion_reiniciar)
 
         menu.addSeparator()
 
-        accion_salir = QAction("❌  Salir", self)
+        accion_salir = QAction("Salir", self)
         accion_salir.triggered.connect(self.close)
         menu.addAction(accion_salir)
 
         menu.exec(event.globalPosition().toPoint())
 
-    def _ejecutar_accion(self, accion):
+    def _ejecutar_accion(self, accion, auto=False):
+        """Ejecuta una accion sobre la mascota"""
         if accion == "comer":
             actividad = self.mascota.comer()
         elif accion == "jugar":
@@ -233,14 +254,18 @@ class VentanaPrincipal(QWidget):
         else:
             return
 
+        # Sonido y animacion
+        if not auto:
+            GestorSonidos.reproducir(accion)
+        self.mascota_widget.mostrar_accion(accion)
+
         actividad.registrar(self.repo, self.mascota_id)
         self._guardar_estado()
         self._actualizar_sprite()
-        self.mascota_widget.mostrar_accion(accion)
         if self.panel_control.isVisible():
             self.panel_control.actualizar(self.mascota)
 
-    # --- Panel de estado ---
+    # ========== PANEL DE ESTADO ==========
 
     def _abrir_o_cerrar_panel(self):
         if self.panel_control.isVisible():
@@ -249,12 +274,12 @@ class VentanaPrincipal(QWidget):
             self.panel_control.actualizar(self.mascota)
             self.panel_control.mostrar_cerca_de(self)
 
-    # --- RF-08: Reiniciar mascota ---
+    # ========== REINICIAR MASCOTA ==========
 
     def _reiniciar_mascota(self):
         msg = QMessageBox(self)
         msg.setWindowTitle("Nueva Mascota")
-        msg.setText("¿Estás seguro de que quieres reiniciar?\nSe borrará la mascota actual.")
+        msg.setText("Seguro que quieres reiniciar?\nSe borrara la mascota actual.")
         msg.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg.setDefaultButton(QMessageBox.No)
         if msg.exec() != QMessageBox.Yes:
@@ -264,10 +289,7 @@ class VentanaPrincipal(QWidget):
         if not ok or not nombre.strip():
             return
 
-        # Borrar mascota actual de la BD
         self.repo.eliminar_mascota(self.mascota_id)
-
-        # Crear nueva mascota
         nuevo_id = self.repo.guardar_mascota(nombre.strip())
         modelo = self.repo.obtener_mascota(nuevo_id)
         self.mascota = Mascota.copiar_desde_modelo(modelo)
@@ -277,7 +299,7 @@ class VentanaPrincipal(QWidget):
         if self.panel_control.isVisible():
             self.panel_control.actualizar(self.mascota)
 
-    # --- Guardar y cerrar ---
+    # ========== GUARDAR Y CERRAR ==========
 
     def _guardar_estado(self):
         self.repo.actualizar_mascota(

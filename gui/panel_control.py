@@ -7,16 +7,16 @@ class PanelControl(QFrame):
 
     def __init__(self, callback_accion=None, parent=None):
         super().__init__(parent)
-        self.callback_accion = callback_accion  # funcion que se llama al pulsar un boton
+        self.callback_accion = callback_accion
 
         self.setWindowFlags(Qt.Popup | Qt.FramelessWindowHint)
-        self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
 
+        # Fondo blanco solido con bordes redondeados y sombra
         self.setStyleSheet("""
             PanelControl {
-                background: rgba(255, 255, 255, 235);
-                border: 1px solid rgba(0, 0, 0, 30);
+                background-color: #ffffff;
+                border: 2px solid #555555;
                 border-radius: 16px;
             }
         """)
@@ -25,27 +25,27 @@ class PanelControl(QFrame):
 
     def _crear_interfaz(self):
         layout = QVBoxLayout(self)
-        layout.setSpacing(8)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setSpacing(10)
+        layout.setContentsMargins(18, 14, 18, 14)
 
-        # Encabezado con nombre y estado
+        # Encabezado
         encabezado = QHBoxLayout()
         self.titulo = QLabel("Mi Mascota")
-        self.titulo.setStyleSheet("color: #444; font-size: 14px; font-weight: bold;")
+        self.titulo.setStyleSheet("color: #111111; font-size: 16px; font-weight: bold;")
         self.estado_label = QLabel("")
-        self.estado_label.setStyleSheet("color: #666; font-size: 11px;")
+        self.estado_label.setStyleSheet("color: #333333; font-size: 13px;")
         encabezado.addWidget(self.titulo)
         encabezado.addStretch()
         encabezado.addWidget(self.estado_label)
         layout.addLayout(encabezado)
 
-        # Barras de progreso para cada atributo
+        # Barras de progreso
         self.barras = {}
         colores = {
-            "hambre": "#FF6464",
-            "felicidad": "#FFC832",
-            "energia": "#64C8FF",
-            "higiene": "#64FF96",
+            "hambre": "#FF4444",
+            "felicidad": "#FFAA00",
+            "energia": "#3399FF",
+            "higiene": "#33CC66",
         }
         nombres = {
             "hambre": "Hambre",
@@ -55,25 +55,27 @@ class PanelControl(QFrame):
         }
 
         grid = QGridLayout()
-        grid.setSpacing(6)
+        grid.setSpacing(8)
 
         for i, clave in enumerate(["hambre", "felicidad", "energia", "higiene"]):
             etiqueta = QLabel(nombres[clave])
-            etiqueta.setStyleSheet("color: #555; font-size: 11px;")
+            etiqueta.setStyleSheet("color: #222222; font-size: 13px; font-weight: bold;")
 
             barra = QProgressBar()
             barra.setRange(0, 100)
             barra.setValue(50)
-            barra.setFixedHeight(14)
+            barra.setFixedHeight(18)
             barra.setTextVisible(True)
             barra.setFormat("%v")
             barra.setStyleSheet(f"""
                 QProgressBar {{
-                    border: 1px solid #ddd; border-radius: 7px;
-                    background: #f0f0f0; height: 14px;
+                    border: 1px solid #999999;
+                    border-radius: 9px;
+                    background: #e0e0e0;
+                    height: 18px;
                 }}
                 QProgressBar::chunk {{
-                    border-radius: 7px;
+                    border-radius: 9px;
                     background: {colores[clave]};
                 }}
             """)
@@ -86,13 +88,13 @@ class PanelControl(QFrame):
         # Linea separadora
         linea = QFrame()
         linea.setFrameShape(QFrame.HLine)
-        linea.setStyleSheet("border: none; border-top: 1px solid #ddd;")
+        linea.setStyleSheet("border: none; border-top: 2px solid #cccccc;")
         layout.addWidget(linea)
 
-        # Botones de accion (solo si hay un callback definido)
+        # Botones de accion
         if self.callback_accion:
             botones_layout = QGridLayout()
-            botones_layout.setSpacing(6)
+            botones_layout.setSpacing(8)
 
             acciones = [
                 ("comer", "Comer"),
@@ -102,17 +104,25 @@ class PanelControl(QFrame):
             ]
             for idx, (clave, texto) in enumerate(acciones):
                 boton = QPushButton(texto)
-                boton.setFixedHeight(32)
+                boton.setFixedHeight(36)
+                boton.setCursor(Qt.PointingHandCursor)
                 boton.setStyleSheet("""
                     QPushButton {
-                        border: 1px solid #ccc; border-radius: 8px; padding: 4px 12px;
-                        background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #fafafa, stop:1 #eee);
-                        color: #333; font-size: 11px;
+                        border: 2px solid #666666;
+                        border-radius: 10px;
+                        padding: 6px 16px;
+                        background-color: #f5f5f5;
+                        color: #111111;
+                        font-size: 13px;
+                        font-weight: bold;
                     }
                     QPushButton:hover {
-                        background: qlineargradient(x1:0,y1:0,x2:0,y2:1, stop:0 #e8e8e8, stop:1 #ddd);
+                        background-color: #d0eaff;
+                        border-color: #3399ff;
                     }
-                    QPushButton:pressed { background: #ccc; }
+                    QPushButton:pressed {
+                        background-color: #b0d0f0;
+                    }
                 """)
                 boton.clicked.connect(lambda checked, k=clave: self.callback_accion(k))
                 botones_layout.addWidget(boton, idx // 2, idx % 2)
@@ -122,7 +132,6 @@ class PanelControl(QFrame):
         self.setFixedSize(self.sizeHint())
 
     def actualizar(self, mascota):
-        """Actualiza las barras y el estado con los valores de la mascota"""
         self.barras["hambre"].setValue(100 - mascota.hambre)
         self.barras["felicidad"].setValue(mascota.felicidad)
         self.barras["energia"].setValue(mascota.energia)
@@ -138,16 +147,14 @@ class PanelControl(QFrame):
         self.estado_label.setText(estados.get(mascota.obtener_estado_general(), ""))
 
     def mostrar_cerca_de(self, widget_origen):
-        """Muestra el panel cerca del widget indicado"""
         punto = widget_origen.mapToGlobal(widget_origen.rect().topLeft())
         x = punto.x() - self.width() // 2 + widget_origen.width() // 2
-        y = punto.y() - 170
+        y = punto.y() - 180
         self.move(x, y)
         self.show()
         self.activateWindow()
         self.setFocus()
 
     def focusOutEvent(self, event):
-        """Se oculta al perder el foco (click en otro lado)"""
         self.hide()
         super().focusOutEvent(event)
